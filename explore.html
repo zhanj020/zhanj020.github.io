@@ -1,0 +1,255 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>sprites</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+    <link rel="stylesheet" href="bootstrap-3.3.6/css/bootstrap.min.css">
+    <style>
+      body {
+        font-family: Monospace;
+        background-color: #f0f0f0;
+        margin: 0px;
+        overflow: hidden;
+      }
+      .btn {
+        position: absolute;
+        float: right;
+        margin: 20px 0px 20px 20px;
+      }
+    </style>
+    <script>
+      // getUserMedia only works over https in Chrome 47+, so we redirect to https. Also notify user if running from file.
+      if (window.location.protocol == "file:") {
+        alert("You seem to be running this example directly from a file. Note that these examples only work when served from a server or localhost due to canvas cross-domain restrictions.");
+      } else if (window.location.hostname !== "localhost" && window.location.protocol !== "https:"){
+        window.location.protocol = "https";
+      }
+    </script>
+  </head>
+  <body>
+    <div id="fbLogout">
+      <a class="fb_button fb_button_medium btn btn-default" id="test2" onclick="fbLogout()" >Log Out</a>
+    </div>
+    <script src="./js/Three.js"></script>
+    <script src="./js/Stats.js"></script>
+    <script src="./js/headtrackr.js"></script>
+    <script src="./js/helvetiker_regular.typeface.js"></script>
+    
+    <canvas id="compare" width="320" height="240" style="display:none"></canvas>
+    <video id="vid" autoplay loop></video>
+    <script src="js/main.js" defer></script>
+    <script>
+      // 3d model setup
+      var container, stats;
+      var camera, scene, renderer;
+      var plane;
+      
+      var videoInput = document.getElementById('vid');
+      var canvasInput = document.getElementById('compare');
+      
+      var projector = new THREE.Projector();
+      var objects = [];
+
+      var placeTarget = function(x,y,z,img,text) {
+        var targetObject = new THREE.Object3D();
+        
+        // Create sprites with lines
+        if (text) {
+          // console.log('HERE');
+          var textGeo = new THREE.TextGeometry(text, {size: 4, height: 1, curveSegments: 3,bevelThickness: 0.3, bevelSize: 0.05, bevelEnabled: true, material: 0, extrudeMaterial: 1});
+          textGeo.computeBoundingBox();
+          textGeo.computeVertexNormals();
+          var textWidth = textGeo.boundingBox.max.x - textGeo.boundingBox.min.x;
+          var material = new THREE.MeshFaceMaterial( [
+            new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.FlatShading } ), // front
+            new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.SmoothShading } ) // side
+          ] );
+
+          var sprite = new THREE.Mesh( textGeo, material );
+          // sprite.scale.x = 40*z/1000;
+          // sprite.scale.y = 40*z/1000;
+          sprite.position.x = (x-textWidth)*z/1000;
+          sprite.position.y = y*z/1000;
+          sprite.position.z = z;
+        } else {
+          // PlaneGeometry(width, height, widthSegments, heightSegments)
+          //   width — Width along the X axis.
+          //   height — Height along the Y axis.
+          //   widthSegments — Optional. Default is 1. 
+          //   heightSegments — Optional. Default is 1.
+          // Change the aspect ratio here, it is 2:2 below.
+          var geometry = new THREE.PlaneGeometry( 3,3, 2, 2 );
+          var material = new THREE.MeshBasicMaterial( {map : new THREE.ImageUtils.loadTexture(img)} );
+          var sprite = new THREE.Mesh( geometry, material );
+          sprite.scale.x = 40*z/1000;
+          sprite.scale.y = 40*z/1000;
+          sprite.position.x = x*z/1000;
+          sprite.position.y = y*z/1000;
+          sprite.position.z = z;
+        }
+
+        targetObject.add( sprite );
+        
+        // var geometry = new THREE.Geometry();
+        // geometry.vertices.push( new THREE.Vector3( -sprite.position.x, -sprite.position.y, 0 ) );
+        // geometry.vertices.push( new THREE.Vector3( 0, 0, z ) );
+        // var line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { color: 0xffffff, linewidth : 0 } ) );
+        // line.position.x = sprite.position.x;
+        // line.position.y = sprite.position.y;
+        // targetObject.add( line );
+        
+        scene.add(targetObject);
+        
+        objects.push(sprite);
+        // objects.push(line);
+        
+        return targetObject;
+      }
+
+      init();
+      animate();
+      
+      function init() {
+
+        container = document.createElement( 'div' );
+        document.body.appendChild( container );
+
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera( 23, window.innerWidth / window.innerHeight, 1, 100000 );
+        camera.position.z = 0;
+        scene.add( camera );
+
+        // Change the picture and text here. You can append more placeTarget if you want. 
+        // placeTarget(x, y, z, 'picture url', 'text or false');
+        placeTarget(-500, 300, 300, 'images/1.jpg', false);
+        placeTarget(-150, 0, 510, 'images/2.jpg', false);
+        placeTarget(150*1, -100, 450, 'images/3.jpg', false);
+        placeTarget(150, 200, 460, 'images/4.jpg');
+        placeTarget(250, 0, 400, 'images/5.jpg', false);
+        placeTarget(100*1, 200, 315, 'images/6.jpg', false);
+        placeTarget(-100,150,500,'images/7.jpg',  false);
+        placeTarget(-200,20,300,'images/8.jpg',  false);
+        placeTarget(-1000,-10,200,'images/9.jpg', false);
+        placeTarget(-100,200,375,'images/10.jpg', false);
+        placeTarget(50,800,260,'images/11.jpg',  false);
+
+
+        // placeTarget(150*1, -100*1, 510.5, 'images/mua.gif', false);
+        
+        renderer = new THREE.CanvasRenderer();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+        container.appendChild( renderer.domElement );
+
+        stats = new Stats();
+        stats.domElement.style.position = 'absolute';
+        stats.domElement.style.top = '0px';
+        // container.appendChild( stats.domElement );
+      }
+
+      function animate() {
+
+        renderer.render( scene, camera );
+        stats.update();
+        
+        requestAnimationFrame( animate );
+        
+      }
+      
+      Array.prototype.remove = function(object) {
+        for (var i = 0;i < this.length;i++) {
+          if (this[i] === object) {
+            this.splice(i,1);
+            break;
+          } 
+        }
+      }
+      
+      // function randomTarget() {
+      //   // Create sprites with lines
+      //   x = (Math.random()*400)-200;
+      //   y = (Math.random()*400)-200;
+      //   z = 400*(Math.random()+0.2);
+      //   placeTarget(x,y,z);
+      // }
+      
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      // randomTarget();
+      
+      // video styling
+      videoInput.style.position = 'fixed';
+      // videoInput.style.top = '50px';
+     
+      // videoInput.style.display = 'block';
+      videoInput.style.float = 'none';
+      // videoInput.style.margin = '40% auto auto 40%';
+      // var ttop = (document.body.clientHeight - 290)/2 +'px';
+      // var left = (document.body.clientWidth - 340)/2 +'px';
+      // var margin = ttop + ' auto auto ' + left;
+      // videoInput.style.margin = margin;
+      videoInput.style.height = '100vh';
+      videoInput.style.width = '100vw';
+       videoInput.style.zIndex = '-1';
+      videoInput.style.display = 'block';
+
+      // var left = (document.body.clientWidth - 1325)/2 +'px';
+      // videoInput.style.margin = 'auto auto auto ' + left;
+
+      
+      // set up camera controller
+      headtrackr.controllers.three.realisticAbsoluteCameraControl(camera, 15, [0,0,0], new THREE.Vector3(0,0,0), {damping : 0.5});
+      
+      // Face detection setup
+      // var htracker = new headtrackr.Tracker({altVideo : {ogv : "./media/capture5.ogv", mp4 : "./media/capture5.mp4"}, cameraOffset : 5});
+      var htracker = new headtrackr.Tracker({altVideo : {ogv : "./media/capture5.ogv", mp4 : "./media/capture5.mp4"}, cameraOffset : 5});
+      htracker.init(videoInput, canvasInput);
+      htracker.start();
+      
+      // var stats = new Stats();
+      // stats.domElement.style.position = 'absolute';
+      // stats.domElement.style.top = '0px';
+      // document.body.appendChild( stats.domElement );
+      
+      document.addEventListener('mousedown', onDocumentMouseDown, false)    
+      
+      function onDocumentMouseDown( event ) {
+
+        event.preventDefault();
+
+        var vector = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1, 0.5 );
+        projector.unprojectVector( vector, camera );
+        
+        var ray = new THREE.Ray( camera.position, vector.subSelf( camera.position ).normalize() );
+        
+        var intersects = ray.intersectObjects( objects );
+         
+        if ( intersects.length > 0 ) {
+          var obj = intersects[0].object.parent;
+          objects.remove(obj.children[0]);
+          objects.remove(obj.children[1]);
+          // do something with the first object
+          scene.remove(intersects[ 0 ].object.parent);
+          // remove from objects
+          // Coment by dyh
+          // randomTarget();
+          // END
+        }
+        
+      }
+    </script>
+    <script src="js/jquery.min.js"></script>
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="bootstrap-3.3.6/js/bootstrap.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  </body>
+</html>
